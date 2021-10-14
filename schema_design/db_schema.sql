@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS content.person_film_work (
 );
 
 -- Уникальный композитный индекс для кинопроизведения и жанра:
-CREATE UNIQUE INDEX film_work_genre ON content.genre_film_work (film_work_id, genre_id);
+CREATE UNIQUE INDEX if not exists film_work_genre ON content.genre_film_work (film_work_id, genre_id);
 
 -- Уникальный композитный индекс для кинопроизведения, актера и жанра:
-CREATE UNIQUE INDEX film_work_person_role ON content.person_film_work (film_work_id, person_id, role)
+CREATE UNIQUE INDEX if not exists film_work_person_role ON content.person_film_work (film_work_id, person_id, role)
