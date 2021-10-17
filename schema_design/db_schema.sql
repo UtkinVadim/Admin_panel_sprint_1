@@ -2,56 +2,64 @@
 CREATE SCHEMA IF NOT EXISTS content;
 
 -- Кинопроизведения:
-CREATE TABLE IF NOT EXISTS content.film_work (
-    id uuid PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    creation_date DATE,
-    certificate TEXT,
-    file_path TEXT,
-    rating FLOAT,
-    type TEXT NOT NULL,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone
+CREATE TABLE IF NOT EXISTS content.filmwork (
+    id uuid NOT NULL PRIMARY KEY,
+    title varchar(255) NOT NULL,
+    description text NULL,
+    creation_date date NULL,
+    certificate text NULL,
+    file_path varchar(100) NULL,
+    rating double precision NULL,
+    type varchar(20) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
 );
+
 
 -- Жанры кинопроизведений:
 CREATE TABLE IF NOT EXISTS content.genre (
-    id uuid PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone
+    id uuid NOT NULL PRIMARY KEY,
+    name varchar(255) NOT NULL,
+    description text NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
 );
 
--- Таблица, которая связывает кинопроизведение и жанр:
-CREATE TABLE IF NOT EXISTS content.genre_film_work (
-    id uuid PRIMARY KEY,
-    film_work_id uuid NOT NULL,
-    genre_id uuid NOT NULL,
-    created_at timestamp with time zone
-);
 
 -- Актеры:
 CREATE TABLE IF NOT EXISTS content.person (
-    id uuid PRIMARY KEY,
-    full_name TEXT NOT NULL,
-    birth_date DATE,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone
+    id uuid NOT NULL PRIMARY KEY,
+    full_name varchar(255) NOT NULL,
+    birth_date date NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
 );
 
+
+-- Таблица, которая связывает кинопроизведение и жанр:
+CREATE TABLE IF NOT EXISTS content.genre_filmwork (
+    PRIMARY KEY(filmwork_id, genre_id),
+    filmwork_id uuid NOT NULL,
+    genre_id uuid NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT fk_filmwork_genre FOREIGN KEY (filmwork_id) REFERENCES content.filmwork (id) ON UPDATE CASCADE  ON DELETE CASCADE,
+    CONSTRAINT fk_genre FOREIGN KEY (genre_id) REFERENCES content.genre (id) ON UPDATE CASCADE
+);
+
+
 -- Таблица, которая связывает кинопроизведение и актера:
-CREATE TABLE IF NOT EXISTS content.person_film_work (
-    id uuid PRIMARY KEY,
-    film_work_id uuid NOT NULL,
+CREATE TABLE IF NOT EXISTS content.person_filmwork (
+    PRIMARY KEY(filmwork_id, person_id, role),
+    filmwork_id uuid NOT NULL,
     person_id uuid NOT NULL,
-    role TEXT NOT NULL,
-    created_at timestamp with time zone
+    role varchar(255) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT fk_filmwork_person FOREIGN KEY (filmwork_id) REFERENCES content.filmwork (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_person FOREIGN KEY (person_id) REFERENCES content.person (id) ON UPDATE CASCADE
 );
 
 -- Уникальный композитный индекс для кинопроизведения и жанра:
-CREATE UNIQUE INDEX if not exists film_work_genre ON content.genre_film_work (film_work_id, genre_id);
+CREATE UNIQUE INDEX IF NOT EXISTS filmwork_genre ON content.genre_filmwork (filmwork_id, genre_id);
 
 -- Уникальный композитный индекс для кинопроизведения, актера и жанра:
-CREATE UNIQUE INDEX if not exists film_work_person_role ON content.person_film_work (film_work_id, person_id, role)
+CREATE UNIQUE INDEX IF NOT EXISTS person_filmwork_role ON content.person_filmwork (filmwork_id, person_id, role);

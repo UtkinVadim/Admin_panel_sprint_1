@@ -27,7 +27,7 @@ class AbsDataclass:
 
 
 @dataclass(frozen=True)
-class FilmWork(AbsDataclass):
+class Filmwork(AbsDataclass):
     title: str
     description: str
     creation_date: datetime
@@ -37,7 +37,7 @@ class FilmWork(AbsDataclass):
     type: str
     created_at: datetime
     updated_at: datetime
-    table_name: str = 'film_work'
+    table_name: str = 'filmwork'
 
     def fields(self) -> tuple:
         fields = (
@@ -112,37 +112,35 @@ class Person(AbsDataclass):
 
 
 @dataclass(frozen=True)
-class GenreFilmWork(AbsDataclass):
-    film_work_id: uuid
+class GenreFilmwork(AbsDataclass):
+    filmwork_id: uuid
     genre_id: uuid
     created_at: datetime
-    table_name: str = 'genre_film_work'
+    table_name: str = 'genre_filmwork'
 
     def fields(self):
         fields = (
-            str(self.id),
-            str(self.film_work_id),
+            str(self.filmwork_id),
             str(self.genre_id),
             str(self.created_at) if self.created_at else 'null'
         )
         return fields
 
     def field_names(self) -> list:
-        return ['id', 'film_work_id', 'genre_id', 'created_at']
+        return ['filmwork_id', 'genre_id', 'created_at']
 
 
 @dataclass(frozen=True)
-class PersonFilmWork(AbsDataclass):
-    film_work_id: uuid
+class PersonFilmwork(AbsDataclass):
+    filmwork_id: uuid
     person_id: uuid
     role: str
     created_at: datetime
-    table_name: str = 'person_film_work'
+    table_name: str = 'person_filmwork'
 
     def fields(self):
         fields = (
-            str(self.id),
-            str(self.film_work_id),
+            str(self.filmwork_id),
             str(self.person_id),
             str(self.role),
             str(self.created_at) if self.created_at else 'null'
@@ -150,7 +148,7 @@ class PersonFilmWork(AbsDataclass):
         return fields
 
     def field_names(self) -> list:
-        return ['id', 'film_work_id', 'person_id', 'role', 'created_at']
+        return ['filmwork_id', 'person_id', 'role', 'created_at']
 
 
 class PostgresSaver:
@@ -163,7 +161,7 @@ class PostgresSaver:
     def save_all_data(self) -> None:
         self.cursor.execute(open('../schema_design/db_schema.sql', 'r').read())
         for table_name, tables in self.data.items():
-            self.cursor.execute(f'TRUNCATE {table_name}')
+            self.cursor.execute(f'TRUNCATE content.{table_name} CASCADE')
             self._write_data_from_tables(tables)
             self._check_load_data(tables)
         self.cursor.close()
@@ -213,21 +211,21 @@ class SQLiteLoader:
     @property
     def _table_dataclass_handler(self) -> dict:
         return {
-            "film_work": FilmWork,
+            "film_work": Filmwork,
             "genre": Genre,
             "person": Person,
-            "genre_film_work": GenreFilmWork,
-            "person_film_work": PersonFilmWork
+            "genre_film_work": GenreFilmwork,
+            "person_film_work": PersonFilmwork
         }
 
     def load_movies(self) -> dict:
         try:
             data = {
-                "film_work": self._get_data_from_table(table_name="film_work"),
+                "filmwork": self._get_data_from_table(table_name="film_work"),
                 "genre": self._get_data_from_table(table_name="genre"),
                 "person": self._get_data_from_table(table_name="person"),
-                "genre_film_work": self._get_data_from_table(table_name="genre_film_work"),
-                "person_film_work": self._get_data_from_table(table_name="person_film_work"),
+                "genre_filmwork": self._get_data_from_table(table_name="genre_film_work"),
+                "person_filmwork": self._get_data_from_table(table_name="person_film_work"),
             }
         except sqlite3.OperationalError as err:
             raise ValueError(f'Read error: {err}')
@@ -254,13 +252,11 @@ def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
 
 
 if __name__ == '__main__':
-    dsn = {
-        'dbname': 'movies',
-        'user': 'movies',
-        'password': 'movies',
-        'host': '127.0.0.1',
-        'port': 5432,
-        'options': '-c search_path=content'
-    }
-    with sqlite3.connect('db.sqlite') as sqlite_conn, psycopg2.connect(**dsn, cursor_factory=DictCursor) as pg_conn:
+    dsl = {'dbname': 'movies_database',
+           'user': 'postgres',
+           'password': 'postgres',
+           'host': '127.0.0.1',
+           'port': 5432,
+           'options': '-c search_path=content'}
+    with sqlite3.connect('db.sqlite') as sqlite_conn, psycopg2.connect(**dsl, cursor_factory=DictCursor) as pg_conn:
         load_from_sqlite(sqlite_conn, pg_conn)
