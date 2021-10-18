@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from psycopg2.extras import DictCursor
 from psycopg2.extensions import connection as _connection
 
-DELIMITER = '|'
+DELIMITER = "|"
 
 
 @dataclass(frozen=True)
@@ -37,34 +37,36 @@ class Filmwork(AbsDataclass):
     type: str
     created_at: datetime
     updated_at: datetime
-    table_name: str = 'filmwork'
+    table_name: str = "filmwork"
 
     def fields(self) -> tuple:
         fields = (
             str(self.id),
             str(self.title),
-            str(self.description) if self.description else 'null',
-            str(self.creation_date) if self.creation_date else 'null',
-            str(self.certificate) if self.certificate else 'null',
-            str(self.file_path) if self.file_path else 'null',
-            str(self.rating) if self.rating else 'null',
+            str(self.description) if self.description else "null",
+            str(self.creation_date) if self.creation_date else "null",
+            str(self.certificate) if self.certificate else "null",
+            str(self.file_path) if self.file_path else "null",
+            str(self.rating) if self.rating else "null",
             str(self.type),
-            str(self.created_at) if self.created_at else 'null',
-            str(self.updated_at) if self.updated_at else 'null'
+            str(self.created_at) if self.created_at else "null",
+            str(self.updated_at) if self.updated_at else "null",
         )
         return fields
 
     def field_names(self) -> list:
-        return ['id',
-                'title',
-                'description',
-                'creation_date',
-                'certificate',
-                'file_path',
-                'rating',
-                'type',
-                'created_at',
-                'updated_at']
+        return [
+            "id",
+            "title",
+            "description",
+            "creation_date",
+            "certificate",
+            "file_path",
+            "rating",
+            "type",
+            "created_at",
+            "updated_at",
+        ]
 
 
 @dataclass(frozen=True)
@@ -73,20 +75,20 @@ class Genre(AbsDataclass):
     description: str
     created_at: datetime
     updated_at: datetime
-    table_name: str = 'genre'
+    table_name: str = "genre"
 
     def fields(self) -> tuple:
         fields = (
             str(self.id),
             str(self.name),
-            str(self.description) if self.description else 'null',
-            str(self.created_at) if self.created_at else 'null',
-            str(self.updated_at) if self.updated_at else 'null'
+            str(self.description) if self.description else "null",
+            str(self.created_at) if self.created_at else "null",
+            str(self.updated_at) if self.updated_at else "null",
         )
         return fields
 
     def field_names(self) -> list:
-        return ['id', 'name', 'description', 'created_at', 'updated_at']
+        return ["id", "name", "description", "created_at", "updated_at"]
 
 
 @dataclass(frozen=True)
@@ -95,20 +97,20 @@ class Person(AbsDataclass):
     birth_date: datetime
     created_at: datetime
     updated_at: datetime
-    table_name: str = 'person'
+    table_name: str = "person"
 
     def fields(self):
         fields = (
             str(self.id),
             str(self.full_name),
-            str(self.birth_date) if self.birth_date else 'null',
-            str(self.created_at) if self.created_at else 'null',
-            str(self.updated_at) if self.updated_at else 'null'
+            str(self.birth_date) if self.birth_date else "null",
+            str(self.created_at) if self.created_at else "null",
+            str(self.updated_at) if self.updated_at else "null",
         )
         return fields
 
     def field_names(self) -> list:
-        return ['id', 'full_name', 'birth_date', 'created_at', 'updated_at']
+        return ["id", "full_name", "birth_date", "created_at", "updated_at"]
 
 
 @dataclass(frozen=True)
@@ -116,18 +118,18 @@ class GenreFilmwork(AbsDataclass):
     filmwork_id: uuid
     genre_id: uuid
     created_at: datetime
-    table_name: str = 'genre_filmwork'
+    table_name: str = "genre_filmwork"
 
     def fields(self):
         fields = (
             str(self.filmwork_id),
             str(self.genre_id),
-            str(self.created_at) if self.created_at else 'null'
+            str(self.created_at) if self.created_at else "null",
         )
         return fields
 
     def field_names(self) -> list:
-        return ['filmwork_id', 'genre_id', 'created_at']
+        return ["filmwork_id", "genre_id", "created_at"]
 
 
 @dataclass(frozen=True)
@@ -136,19 +138,19 @@ class PersonFilmwork(AbsDataclass):
     person_id: uuid
     role: str
     created_at: datetime
-    table_name: str = 'person_filmwork'
+    table_name: str = "person_filmwork"
 
     def fields(self):
         fields = (
             str(self.filmwork_id),
             str(self.person_id),
             str(self.role),
-            str(self.created_at) if self.created_at else 'null'
+            str(self.created_at) if self.created_at else "null",
         )
         return fields
 
     def field_names(self) -> list:
-        return ['filmwork_id', 'person_id', 'role', 'created_at']
+        return ["filmwork_id", "person_id", "role", "created_at"]
 
 
 class PostgresSaver:
@@ -159,9 +161,9 @@ class PostgresSaver:
         self.insert_limit: int = 200
 
     def save_all_data(self) -> None:
-        self.cursor.execute(open('../schema_design/db_schema.sql', 'r').read())
+        self.cursor.execute(open("../schema_design/db_schema.sql", "r").read())
         for table_name, tables in self.data.items():
-            self.cursor.execute(f'TRUNCATE content.{table_name} CASCADE')
+            self.cursor.execute(f"TRUNCATE content.{table_name} CASCADE")
             self._write_data_from_tables(tables)
             self._check_load_data(tables)
         self.cursor.close()
@@ -182,22 +184,26 @@ class PostgresSaver:
     def _copy(self, data: io.StringIO, table: dataclass) -> io.StringIO:
         try:
             data.seek(0)
-            self.cursor.copy_from(file=data,
-                                  table=table.table_name,
-                                  sep=DELIMITER,
-                                  null='null',
-                                  columns=table.field_names())
+            self.cursor.copy_from(
+                file=data,
+                table=table.table_name,
+                sep=DELIMITER,
+                null="null",
+                columns=table.field_names(),
+            )
         except psycopg2.Error as err:
-            raise ValueError(f'Writing error: {err.pgerror}')
+            raise ValueError(f"Writing error: {err.pgerror}")
         else:
             return io.StringIO()
 
     def _check_load_data(self, tables: list) -> None:
         table_instance = tables[0]
-        self.cursor.execute(f'SELECT count(*) FROM content.{table_instance.table_name}')
+        self.cursor.execute(f"SELECT count(*) FROM content.{table_instance.table_name}")
         result = self.cursor.fetchone()
-        assert str(result).strip('[]') == str(len(tables))
-        print(f"{table_instance.table_name.replace('_', ' ').title()} saving success!\n")
+        assert str(result).strip("[]") == str(len(tables))
+        print(
+            f"{table_instance.table_name.replace('_', ' ').title()} saving success!\n"
+        )
 
 
 class SQLiteLoader:
@@ -215,7 +221,7 @@ class SQLiteLoader:
             "genre": Genre,
             "person": Person,
             "genre_film_work": GenreFilmwork,
-            "person_film_work": PersonFilmwork
+            "person_film_work": PersonFilmwork,
         }
 
     def load_movies(self) -> dict:
@@ -224,11 +230,15 @@ class SQLiteLoader:
                 "filmwork": self._get_data_from_table(table_name="film_work"),
                 "genre": self._get_data_from_table(table_name="genre"),
                 "person": self._get_data_from_table(table_name="person"),
-                "genre_filmwork": self._get_data_from_table(table_name="genre_film_work"),
-                "person_filmwork": self._get_data_from_table(table_name="person_film_work"),
+                "genre_filmwork": self._get_data_from_table(
+                    table_name="genre_film_work"
+                ),
+                "person_filmwork": self._get_data_from_table(
+                    table_name="person_film_work"
+                ),
             }
         except sqlite3.OperationalError as err:
-            raise ValueError(f'Read error: {err}')
+            raise ValueError(f"Read error: {err}")
         else:
             return data
         finally:
@@ -237,7 +247,7 @@ class SQLiteLoader:
     def _get_data_from_table(self, table_name: str) -> dataclass:
         tables = []
         table_dataclass = self._table_dataclass_handler[table_name]
-        for row in self.cur.execute(f'SELECT * FROM {table_name}'):
+        for row in self.cur.execute(f"SELECT * FROM {table_name}"):
             tables.append(table_dataclass(*row))
         return tables
 
@@ -251,12 +261,16 @@ def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
     postgres_saver.save_all_data()
 
 
-if __name__ == '__main__':
-    dsl = {'dbname': 'movies_database',
-           'user': 'postgres',
-           'password': 'postgres',
-           'host': '127.0.0.1',
-           'port': 5432,
-           'options': '-c search_path=content'}
-    with sqlite3.connect('db.sqlite') as sqlite_conn, psycopg2.connect(**dsl, cursor_factory=DictCursor) as pg_conn:
+if __name__ == "__main__":
+    dsl = {
+        "dbname": "movies_database",
+        "user": "postgres",
+        "password": "postgres",
+        "host": "127.0.0.1",
+        "port": 5432,
+        "options": "-c search_path=content",
+    }
+    with sqlite3.connect("db.sqlite") as sqlite_conn, psycopg2.connect(
+        **dsl, cursor_factory=DictCursor
+    ) as pg_conn:
         load_from_sqlite(sqlite_conn, pg_conn)
