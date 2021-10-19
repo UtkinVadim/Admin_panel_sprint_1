@@ -1,7 +1,7 @@
 from uuid import uuid4
 
-from django.db import models
 from django.core.validators import MinValueValidator
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
@@ -14,7 +14,7 @@ class TimeStampedIdMixin(models.Model):
         abstract = True
 
 
-class Filmwork(TimeStampedIdMixin, models.Model):
+class Filmwork(TimeStampedIdMixin):
     title = models.CharField(_("Название"), max_length=255)
     description = models.TextField(_("Описание"), blank=True, null=True)
     creation_date = models.DateField(_("Дата создания"), blank=True, null=True)
@@ -38,7 +38,7 @@ class Filmwork(TimeStampedIdMixin, models.Model):
         db_table = 'content"."filmwork'
 
 
-class Genre(TimeStampedIdMixin, models.Model):
+class Genre(TimeStampedIdMixin):
     name = models.CharField(_("Название"), max_length=255)
     description = models.TextField(_("Описание"), blank=True, null=True)
 
@@ -51,7 +51,7 @@ class Genre(TimeStampedIdMixin, models.Model):
         db_table = 'content"."genre'
 
 
-class Person(TimeStampedIdMixin, models.Model):
+class Person(TimeStampedIdMixin):
     full_name = models.CharField(_("Полное имя"), max_length=255)
     birth_date = models.DateField(_("Дата рождения"), blank=True, null=True)
 

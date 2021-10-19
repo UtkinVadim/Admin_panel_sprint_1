@@ -1,13 +1,17 @@
-import io
-import uuid
-import sqlite3
 import datetime
-import psycopg2
-
-from typing import List
+import io
+import os
+import sqlite3
+import uuid
 from dataclasses import dataclass
-from psycopg2.extras import DictCursor
+from typing import List
+
+import psycopg2
+from dotenv import find_dotenv, load_dotenv
 from psycopg2.extensions import connection as _connection
+from psycopg2.extras import DictCursor
+
+load_dotenv(find_dotenv(raise_error_if_not_found=False))
 
 DELIMITER = "|"
 
@@ -154,65 +158,67 @@ class PersonFilmwork(AbsDataclass):
 
 
 class PostgresSaver:
-    def __init__(self, pg_conn: _connection, data: dict):
+    def __init__(self, pg_conn: _connection, table_data: list = None):
         self.connect: _connection = pg_conn
-        self.data = data
         self.cursor: DictCursor = self.connect.cursor()
-        self.insert_limit: int = 200
+        self.table_data: list = table_data
+        self.tables_for_import = [
+            "filmwork",
+            "genre",
+            "person",
+            "genre_filmwork",
+            "person_filmwork",
+        ]
 
-    def save_all_data(self) -> None:
-        self.cursor.execute(open("../schema_design/db_schema.sql", "r").read())
-        for table_name, tables in self.data.items():
-            self.cursor.execute(f"TRUNCATE content.{table_name} CASCADE")
-            self._write_data_from_tables(tables)
-            self._check_load_data(tables)
-        self.cursor.close()
+    @property
+    def table_instance(self) -> dataclass:
+        return self.table_data[0]
 
-    def _write_data_from_tables(self, tables: List[dataclass]) -> None:
-        data = io.StringIO()
-        table_instance = tables[0]
-        data_count = 0
-        for table in tables:
-            data_count += 1
-            data.write(table.data_to_write())
-            if data_count == self.insert_limit:
-                data = self._copy(data, table_instance)
-                data_count = 0
+    def save_data(self) -> None:
+        with open("../schema_design/db_schema.sql", "r") as db_schema:
+            self.cursor.execute(db_schema.read())
+            self._write_data_from_tables()
 
-        self._copy(data, table_instance)
+    def create_db_schema(self):
+        with open("../schema_design/db_schema.sql", "r") as db_schema:
+            self.cursor.execute(db_schema.read())
 
-    def _copy(self, data: io.StringIO, table: dataclass) -> io.StringIO:
+    def clear_tables_for_import(self):
+        for table in self.tables_for_import:
+            self.cursor.execute(f"TRUNCATE content.{table} CASCADE")
+
+    def _write_data_from_tables(self) -> None:
+        data_for_import = io.StringIO()
+        for table in self.table_data:
+            data_for_import.write(table.data_to_write())
+        self._copy(data_for_import)
+
+    def _copy(self, data_for_import: io.StringIO) -> io.StringIO:
         try:
-            data.seek(0)
+            data_for_import.seek(0)
             self.cursor.copy_from(
-                file=data,
-                table=table.table_name,
+                file=data_for_import,
+                table=self.table_instance.table_name,
                 sep=DELIMITER,
                 null="null",
-                columns=table.field_names(),
+                columns=self.table_instance.field_names(),
             )
         except psycopg2.Error as err:
             raise ValueError(f"Writing error: {err.pgerror}")
         else:
             return io.StringIO()
 
-    def _check_load_data(self, tables: list) -> None:
-        table_instance = tables[0]
-        self.cursor.execute(f"SELECT count(*) FROM content.{table_instance.table_name}")
-        result = self.cursor.fetchone()
-        assert str(result).strip("[]") == str(len(tables))
-        print(
-            f"{table_instance.table_name.replace('_', ' ').title()} saving success!\n"
-        )
-
 
 class SQLiteLoader:
     def __init__(self, connection: sqlite3.Connection):
         self.connection: sqlite3.Connection = connection
-
-    @property
-    def cur(self) -> sqlite3.Cursor:
-        return self.connection.cursor()
+        self.tables_for_export = [
+            "film_work",
+            "genre",
+            "person",
+            "genre_film_work",
+            "person_film_work",
+        ]
 
     @property
     def _table_dataclass_handler(self) -> dict:
@@ -224,50 +230,70 @@ class SQLiteLoader:
             "person_film_work": PersonFilmwork,
         }
 
-    def load_movies(self) -> dict:
-        try:
-            data = {
-                "filmwork": self._get_data_from_table(table_name="film_work"),
-                "genre": self._get_data_from_table(table_name="genre"),
-                "person": self._get_data_from_table(table_name="person"),
-                "genre_filmwork": self._get_data_from_table(
-                    table_name="genre_film_work"
-                ),
-                "person_filmwork": self._get_data_from_table(
-                    table_name="person_film_work"
-                ),
-            }
-        except sqlite3.OperationalError as err:
-            raise ValueError(f"Read error: {err}")
-        else:
-            return data
-        finally:
-            self.cur.close()
+    def table_data_generator(self) -> List[dataclass]:
+        for table_name in self.tables_for_export:
+            table_dataclass = self._table_dataclass_handler[table_name]
+            limit = 500
+            offset = 0
+            try:
+                count_rows_for_export = self.connection.execute(
+                    f"SELECT count(*) FROM {table_name}"
+                ).fetchone()[0]
+                while count_rows_for_export > 0:
+                    count_rows_for_export -= limit
+                    rows = self.connection.cursor().execute(
+                        f"SELECT * FROM {table_name} LIMIT {limit} OFFSET {offset}"
+                    )
+                    offset += limit
+                    yield [table_dataclass(*row) for row in rows]
+            except sqlite3.OperationalError as err:
+                raise ValueError(f"Read error: {err}")
 
-    def _get_data_from_table(self, table_name: str) -> dataclass:
-        tables = []
-        table_dataclass = self._table_dataclass_handler[table_name]
-        for row in self.cur.execute(f"SELECT * FROM {table_name}"):
-            tables.append(table_dataclass(*row))
-        return tables
+
+def check_loaded_data(
+    sqlite_connection: sqlite3.Connection,
+    pg_connection: _connection,
+    tables_for_checking: zip,
+):
+    pg_cursor: DictCursor = pg_connection.cursor()
+    for sqlite_table, pg_table in tables_for_checking:
+        rows_count_in_sqlite_db = sqlite_connection.execute(
+            f"SELECT count(*) FROM {sqlite_table}"
+        ).fetchone()[0]
+        pg_cursor.execute(f"SELECT count(*) FROM content.{pg_table}")
+        rows_count_in_pg_db = pg_cursor.fetchone()[0]
+        assert rows_count_in_sqlite_db == rows_count_in_pg_db
 
 
 def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
-    """Основной метод загрузки данных из SQLite в Postgres"""
+    """Основной метод загрузки данных из SQLite в Postgres."""
     sqlite_loader = SQLiteLoader(connection)
-    data = sqlite_loader.load_movies()
+    data_for_import = sqlite_loader.table_data_generator()
 
-    postgres_saver = PostgresSaver(pg_conn, data)
-    postgres_saver.save_all_data()
+    postgres_saver = PostgresSaver(pg_conn)
+    postgres_saver.create_db_schema()
+    postgres_saver.clear_tables_for_import()
+
+    for table_data in data_for_import:
+        postgres_saver.table_data = table_data
+        postgres_saver.save_data()
+
+    tables_for_checking = zip(
+        sqlite_loader.tables_for_export, postgres_saver.tables_for_import
+    )
+
+    check_loaded_data(connection, pg_conn, tables_for_checking)
+
+    print("Import completed!")
 
 
 if __name__ == "__main__":
     dsl = {
-        "dbname": "movies_database",
-        "user": "postgres",
-        "password": "postgres",
-        "host": "127.0.0.1",
-        "port": 5432,
+        "dbname": os.environ.get("DB_NAME"),
+        "user": os.environ.get("DB_USER"),
+        "password": os.environ.get("DB_PASSWORD"),
+        "host": os.environ.get("DB_HOST"),
+        "port": os.environ.get("DB_PORT"),
         "options": "-c search_path=content",
     }
     with sqlite3.connect("db.sqlite") as sqlite_conn, psycopg2.connect(
