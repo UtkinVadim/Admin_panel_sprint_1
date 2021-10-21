@@ -174,11 +174,6 @@ class PostgresSaver:
     def table_instance(self) -> dataclass:
         return self.table_data[0]
 
-    def save_data(self) -> None:
-        with open("../schema_design/db_schema.sql", "r") as db_schema:
-            self.cursor.execute(db_schema.read())
-            self._write_data_from_tables()
-
     def create_db_schema(self):
         with open("../schema_design/db_schema.sql", "r") as db_schema:
             self.cursor.execute(db_schema.read())
@@ -187,7 +182,7 @@ class PostgresSaver:
         for table in self.tables_for_import:
             self.cursor.execute(f"TRUNCATE content.{table} CASCADE")
 
-    def _write_data_from_tables(self) -> None:
+    def save_data(self) -> None:
         data_for_import = io.StringIO()
         for table in self.table_data:
             data_for_import.write(table.data_to_write())
